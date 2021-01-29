@@ -232,10 +232,12 @@ public class Hello {
         return Result.error("打印失败！");
     }
 
+    /**
+     * 获取服务器后台的打印机数据并存在redis中
+     * @return 返回结果
+     */
     public boolean setRedis(){
-        System.out.println("-------------测试输出数据如下--------------");
         boolean has = redisUtil.hasKey("printData");
-        System.out.println(has);
         if(has){
             return true;
         }
