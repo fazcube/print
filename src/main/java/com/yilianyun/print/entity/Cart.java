@@ -8,23 +8,24 @@ import lombok.Data;
  *
  */
 @Data
-public class Test {
+public class Cart {
     // 菜品名称
     private String name;
     // 价格
-    private double money;
+    private String money;
     // 数量
-    private Integer num;
-    //菜品分类
-    private String type;
-    public Test() {
+    private String num;
+    //单位
+    private String unit;
+
+    public Cart() {
         super();
     }
-    public Test(String name, double money, Integer num,String type) {
+    public Cart(String name, String money, String num, String unit) {
         super();
         this.name = name;
         this.money = money;
         this.num = num;
-        this.type=type;
+        this.unit = unit;
     }
 }

@@ -1,12 +1,29 @@
-package com.yilianyun.print.common;
+package com.yilianyun.print.common.print;
 
+import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import com.yilianyun.print.common.redis.RedisUtil;
+import com.yilianyun.print.entity.Cart;
+import org.springframework.beans.factory.annotation.Autowired;
+
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * 提供json来转换模板，返回stringBuffer字符串
  * pzj 2020/12/22
  */
 public class PrintTemplate {
+
+    @Autowired
+    private RedisUtil redisUtil;
+
+    //设置格式化时间
+    private static final DateTimeFormatter FORMAT_NINETEEN = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     /**
      * 模板1 --预结单
@@ -82,15 +99,28 @@ public class PrintTemplate {
      */
     public static String template2(JSONObject jsonObject){
 
-        StringBuffer sbf = new StringBuffer("<MS>0,0</MS>");//设置音量和音效
+        //转换json数据
+        JSONArray basic = jsonObject.getJSONArray("basic_information");
+        JSONArray set = jsonObject.getJSONArray("settle_accounts");
+
+        String danhao = (JSONObject.parseObject(JSONObject.toJSONString(basic.get(0)))).get("value").toString();
+        String zhuohao = (JSONObject.parseObject(JSONObject.toJSONString(basic.get(1)))).get("value").toString();
+        String yingxiao = (JSONObject.parseObject(JSONObject.toJSONString(basic.get(3)))).get("value").toString();
+        String kaidan = (JSONObject.parseObject(JSONObject.toJSONString(basic.get(5)))).get("value").toString();
+        String renshu = (JSONObject.parseObject(JSONObject.toJSONString(basic.get(4)))).get("value").toString();
+
+        List<Cart> list = setCartList(jsonObject.getJSONArray("cart"));
+
+        StringBuffer sbf = new StringBuffer();
+        sbf.append("<MS>0,0</MS>");//设置音量和音效
 
         sbf.append("<FS2><center>自 己 人 家 宴</center></FS2>\r\n");
         sbf.append("<FS2><center>**君子广场店**</center></FS2>\r\n");
 
-        sbf.append("@@2开单时间：2020-12-21 13:10:03\n");
+        sbf.append("@@2开单时间："+kaidan+"\n");
         sbf.append("@@2流水号：000016428\n");
-        sbf.append("@@2单号：08073/1\t\t\t\t收银：周文娟\n");
-        sbf.append("@@2桌号：08台\t\t\t\t\t人数：3\n");
+        sbf.append("@@2单号："+danhao+"\t\t收银："+yingxiao+"\n");
+        sbf.append("@@2桌号："+zhuohao+"\t\t\t\t人数："+renshu+"\n");
 
         sbf.append("@@2================================================\n");
 
@@ -101,34 +131,25 @@ public class PrintTemplate {
         sbf.append("@@2------------------------------------------------\n");
 
         sbf.append("<FH><FB><table>");//菜品列表开始
-        sbf.append("<tr><td>茶位费(赠)</td><td>4 位</td><td>0.00</td></tr>");
-        sbf.append("<tr><td>古法马拉糕18.8元</td><td>1 </td><td>0.00</td></tr>");
-        sbf.append("<tr><td>家宴虾饺皇28.8元</td><td>1 </td><td>0.80</td></tr>");
-        sbf.append("<tr><td>红烧乳鸽48元</td><td>1 </td><td>0.00</td></tr>");
-        sbf.append("<tr><td>天鹅榴莲酥25.8元</td><td>1 </td><td>0.00</td></tr>");
-        sbf.append("<tr><td>白灼黄秋葵18.8元</td><td>1 </td><td>0.00</td></tr>");
-        sbf.append("<tr><td>套餐价148元</td><td>1 </td><td>148.00</td></tr>");
-        sbf.append("<tr><td>皮蛋瘦肉粥18.8元</td><td>1 </td><td>0.00</td></tr>");
-        sbf.append("<tr><td>好味酱凤爪25.8元</td><td>1 </td><td>0.00</td></tr>");
-        sbf.append("<tr><td>秘制紫薯包（18.8）</td><td>1 </td><td>0.00</td></tr>");
-        sbf.append("<tr><td>*招牌炆羊腩</td><td>1 例</td><td>288.00</td></tr>");
-        sbf.append("<tr><td>牛肋骨</td><td>1 半条</td><td>134.00</td></tr>");
-        sbf.append("<tr><td>清蒸老虎斑（粤）</td><td>1.8 斤</td><td>428.40</td></tr>");
-        sbf.append("<tr><td>茼蒿（*蒜蓉炒）</td><td>1 例</td><td>68.00</td></tr>");
-        sbf.append("<tr><td>纸巾</td><td>1 盒</td><td>5.00</td></tr>");
-        sbf.append("<tr><td>打包盒</td><td>4 个</td><td>4.00</td></tr>");
+        //循环取到
+        for(Cart cart:list){
+            sbf.append("<tr><td>"+cart.getName()+"</td><td>"+cart.getNum()+" "+cart.getUnit()+"</td><td>"+cart.getMoney()+"</td></tr>");
+        }
         sbf.append("</table></FB></FH>");//菜品列表结束
 
         sbf.append("@@2================================================\n");
 
         sbf.append("<FH><FB><table>");//金额列表开始
-        sbf.append("<tr><td>10%服务费：</td><td>63.00</td></tr>");
-        sbf.append("<tr><td>应付金额：</td><td>696.00</td></tr>");
+
+        for(int j=0;j<set.size();j++){
+            JSONObject json = JSONObject.parseObject(JSONObject.toJSONString(set.get(j)));
+            sbf.append("<tr><td>"+json.get("name").toString()+"</td><td></td><td>"+json.get("value").toString()+"</td></tr>");
+        }
         sbf.append("</table></FB></FH>");//金额列表结束
 
         sbf.append("\n");//换个行控制间隔
 
-        sbf.append("@@22020-12-21 15:56:49\t第1次打印\n");
+        sbf.append("@@2"+FORMAT_NINETEEN.format(LocalDateTime.now())+"\t第1次打印\n");
 
         sbf.append("\n");//换个行控制间隔
 
@@ -479,4 +500,77 @@ public class PrintTemplate {
         return sbf.toString();
     }
 
+    /**
+     * 打印分单
+     * @param jsonObject 传过来的json数据
+     * @return 返回打印结果
+     */
+    public static boolean templateSplit(JSONObject jsonObject){
+
+        boolean flag = false;
+
+        JSONArray array = jsonObject.getJSONArray("cart");
+        String createTime = jsonObject.getString("createtime");
+        String orderId = jsonObject.getString("orderid");
+        String saleName = jsonObject.getString("sale_name");
+        String serviceName = jsonObject.getString("service_name");
+
+        String bindName2 = jsonObject.getString("bind_name_2");
+        String peopleNum = jsonObject.getString("people_num");
+
+        for(int i = 0;i<array.size();i++){
+            Map<String,String> printData = new HashMap<>();
+            StringBuffer sbf = new StringBuffer();//设置音量和音效
+
+            sbf.append("<FS2><center>【厨房/分单】</center></FS2>\r\n");
+            sbf.append("<FS2><center>E</center></FS2>\r\n");
+
+            sbf.append("@@2桌号："+bindName2+"\t\t单号："+orderId+"\n");
+            sbf.append("@@2人数："+peopleNum+"\t\t\t\t\t服务员："+serviceName+"\n");
+
+            sbf.append("@@2================================================\n");
+            sbf.append("<FH><FB><table>");//菜品列表开始
+            //循环取到
+            JSONObject json = JSONObject.parseObject(JSONObject.toJSONString(array.get(i)));
+            String num = json.getString("num");
+            String sp = json.getJSONObject("sp").getString("name");
+            String name = json.getJSONObject("prod").getString("name");
+
+            sbf.append("<tr><td>"+name+"</td><td>"+num+" "+sp+"</td></tr>");
+
+            sbf.append("</table></FB></FH>");//菜品列表结束
+            sbf.append("@@2================================================\n");
+            sbf.append("@@2【未付款】\n");
+            sbf.append("@@2****下单时间:"+createTime+"****\n");
+
+            printData.put("printCode","4004721370");
+            printData.put("printString",sbf.toString());
+
+            String deptName = json.getJSONObject("prod").getString("deptname");
+
+
+            try {
+                PrintUtil.print(sbf.toString(),"1","2");
+                flag = true;
+            }catch (Exception e){
+                flag = false;
+            }
+        }
+        return flag;
+    }
+
+
+    public static List<Cart> setCartList(JSONArray jsonArray){
+        List<Cart> list = new ArrayList<>();
+        for(int i=0;i<jsonArray.size();i++){
+            Cart cart = new Cart();
+            JSONObject json = JSONObject.parseObject(JSONObject.toJSONString(jsonArray.get(i)));
+            cart.setName(json.getJSONObject("prod").get("name").toString());
+            cart.setNum(json.get("num").toString());
+            cart.setMoney(json.getJSONObject("prod").get("price").toString());
+            cart.setUnit(json.getJSONObject("prod").get("unit").toString());
+            list.add(cart);
+        }
+        return list;
+    }
 }
